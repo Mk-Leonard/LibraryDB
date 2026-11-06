@@ -1,0 +1,28 @@
+# --- Dependencies ---
+# Exclude heavy package folders since your script downloads them fresh
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# --- Build Outputs & Compilations ---
+# Exclude compiled JavaScript production bundles
+dist/
+server/dist/
+client/dist/
+
+# --- Logs & System Files ---
+# Exclude npm log outputs and operating system files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
+
+# --- Environment Variables ---
+# Exclude local environment secrets (if any exist)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
