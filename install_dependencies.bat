@@ -32,11 +32,15 @@ if exist "%ROOT_DIR%server\" (
     cd "%ROOT_DIR%server"
     echo Installing server npm packages...
     call npm install
+    
+    echo Installing @tsconfig/node24...
+    call npm install --save-dev @tsconfig/node24
     if !errorlevel! neq 0 (
-        echo [ERROR] Server installation failed!
+        echo [ERROR] @tsconfig/node24 installation failed!
         pause
         exit /b !errorlevel!
     )
+
     echo [SUCCESS] Server dependencies installed.
 ) else (
     echo [WARNING] "server" directory not found at %ROOT_DIR%server\

@@ -45,7 +45,12 @@ export default function ModularDashboard({
   const [activeStockAction, setActiveStockAction] = useState<{ bookId: number; type: 'add' | 'remove' } | null>(null);
   const [stockQty, setStockQty] = useState<string>('5');
   
-  // Add Book Form State (Admin only)
+  // Add Book Form State (Available to Admin & Staff)
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [titleInput, setTitleInput] = useState('');
+  const [categoryIdInput, setCategoryIdInput] = useState('');
+  const [authorNameInput, setAuthorNameInput] = useState('');
+  const [copiesInput, setCopiesInput] = useState('3');
   const [categories, setCategories] = useState<any[]>([]);
 
   const [loading, setLoading] = useState(false);
@@ -64,7 +69,7 @@ export default function ModularDashboard({
     if (activeTab === 'backups' && role === 'Admin') {
       fetchBackups();
     }
-    if (role === 'Admin') {
+    if (role === 'Admin' || role === 'Staff') {
       fetchCategories();
     }
   }, [activeTab, role]);
@@ -85,6 +90,7 @@ export default function ModularDashboard({
       const data = await res.json();
       if (data.success) {
         setCategories(data.data);
+        if (data.data.length > 0) setCategoryIdInput(data.data[0].categoryId.toString());
       }
     } catch (err) {
       console.error('Failed to fetch categories', err);
@@ -98,6 +104,41 @@ export default function ModularDashboard({
       if (data.success) setBackups(data.data);
     } catch (err) {
       console.error('Failed to fetch backups', err);
+    }
+  };
+
+  // Add Book Submit Handler (Admin & Staff)
+  const handleAddBookSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setStatusMessage(null);
+
+    try {
+      const res = await fetch(`${API_BASE}/admin/books/add`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: titleInput,
+          categoryId: parseInt(categoryIdInput, 10),
+          authorName: authorNameInput,
+          availableCopies: parseInt(copiesInput, 10),
+        }),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setStatusMessage({ text: 'New book added to catalog successfully!', type: 'success' });
+        setTitleInput('');
+        setAuthorNameInput('');
+        setShowAddForm(false);
+        onRefresh();
+      } else {
+        setStatusMessage({ text: data.error || 'Failed to add book.', type: 'error' });
+      }
+    } catch (err: any) {
+      setStatusMessage({ text: `Network Error: ${err.message}`, type: 'error' });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -296,12 +337,13 @@ export default function ModularDashboard({
 
   return (
     <div className="dashboard-container">
-      {/* Render the Account Header Component here */}
+      {/* Render the Account Header Component */}
       <AccountHeader 
         user={user} 
         activeBorrowsCount={activeBorrowsCount} 
         onLogout={onLogout} 
       />
+
       {/* Dynamic Tab Navigation */}
       <nav className="nav-tabs">
         <button className={activeTab === 'inventory' ? 'tab active' : 'tab'} onClick={() => setActiveTab('inventory')}>
@@ -331,6 +373,62 @@ export default function ModularDashboard({
         {/* Inventory / Catalog Tab */}
         {activeTab === 'inventory' && (
           <div className="section">
+            {/* Add Book Header Action Button for Admin and Staff */}
+            {(role === 'Admin' || role === 'Staff') && (
+              <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
+                <button className="btn primary sm" onClick={() => setShowAddForm(!showAddForm)} style={{ width: 'auto' }}>
+                  {showAddForm ? 'Cancel Form' : '+ Add New Book'}
+                </button>
+              </div>
+            )}
+
+            {/* Add Book Form Component */}
+            {showAddForm && (role === 'Admin' || role === 'Staff') && (
+              <div className="auth-card" style={{ maxWidth: '100%', marginBottom: '1.5rem', padding: '1.5rem' }}>
+                <h4 style={{ marginTop: 0, marginBottom: '1rem', textAlign: 'left' }}>Add New Book to Catalog</h4>
+                <form onSubmit={handleAddBookSubmit} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1.5fr 0.8fr auto', gap: '10px', alignItems: 'flex-end' }}>
+                  <div className="input-group" style={{ margin: 0, textAlign: 'left' }}>
+                    <label>Book Title</label>
+                    <input type="text" value={titleInput} onChange={(e) => setTitleInput(e.target.value)} required />
+                  </div>
+                  <div className="input-group" style={{ margin: 0, textAlign: 'left' }}>
+                    <label>Category</label>
+                    <select 
+                      value={categoryIdInput} 
+                      onChange={(e) => setCategoryIdInput(e.target.value)}
+                      style={{ width: '100%', padding: '0.75rem', background: '#0f172a', color: '#fff', border: '1px solid #334155', borderRadius: '6px' }}
+                      required
+                    >
+                      {categories.map((c) => (
+                        <option key={c.categoryId} value={c.categoryId}>{c.categoryName}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="input-group" style={{ margin: 0, textAlign: 'left' }}>
+                    <label>Author Name</label>
+                    <input type="text" value={authorNameInput} onChange={(e) => setAuthorNameInput(e.target.value)} placeholder="e.g. Stephen King" required />
+                  </div>
+                  <div className="input-group" style={{ margin: 0, textAlign: 'left' }}>
+                    <label>Initial Copies</label>
+                    <input type="number" value={copiesInput} onChange={(e) => setCopiesInput(e.target.value)} required min="1" />
+                  </div>
+                  <button type="submit" className="btn primary sm" disabled={loading} style={{ height: '41px' }}>
+                    {loading ? 'Adding...' : 'Save Book'}
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {statusMessage && (
+              <div className="error-banner" style={{
+                backgroundColor: statusMessage.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                borderColor: statusMessage.type === 'success' ? '#10b981' : '#ef4444',
+                color: statusMessage.type === 'success' ? '#34d399' : '#fca5a5'
+              }}>
+                {statusMessage.text}
+              </div>
+            )}
+
             <BookCatalogTable books={books} renderActions={renderBookActions} showId={role !== 'Member'} />
           </div>
         )}
